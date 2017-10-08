@@ -1,5 +1,6 @@
-//var mongojs = require("mongojs");
-var db = null; //mongojs('localhost:27017/myGame', ['account', 'progress']);
+// var mongojs = require("mongojs");
+// var db = mongojs('localhost:27017/myGame', ['account', 'progress']);
+var db = null;
 
 var express = require('express');
 var app = express();
@@ -15,31 +16,47 @@ console.log("Server started.");
 
 var SOCKET_LIST = {};
 
-var Entity = function () {
+var Entity = function (param) {
 	var self = {
 		x: 250,
 		y: 250,
 		spdX: 0,
 		spdY: 0,
 		id: "",
+        map: 'forest',
 	}
+
+    if (param) {
+        if (param.x)
+            self.x = param.x;
+        if (param.y)
+            self.y = param.y;
+        if (param.map)
+            self.map = param.map;
+        if (param.id)
+            self.id = param.id;
+    }
+
 	self.update = function () {
 		self.updatePosition();
 	}
+
 	self.updatePosition = function () {
 		self.x += self.spdX;
 		self.y += self.spdY;
 	}
+
     self.getDistance = function (pt) {
-        return Math.sqrt(Math.pow(self.x-pt.x,2) + Math.pow(self.y-pt.y,2));
+        return Math.sqrt(Math.pow(self.x - pt.x, 2) + Math.pow(self.y - pt.y, 2));
     }
+
 	return self;
 }
 
-var Player = function (id) {
-	var self = Entity();
-	self.id = id;
+var Player = function (param) {
+	var self = Entity(param);
 	self.number = "" + Math.floor(10 * Math.random());
+    self.username = param.username;
 	self.pressingRight = false;
 	self.pressingLeft = false;
 	self.pressingUp = false;
@@ -54,16 +71,22 @@ var Player = function (id) {
 	var super_update = self.update;
 	self.update = function () {
 		self.updateSpd();
+
 		super_update();
 
         if (self.pressingAttack) {
     	       self.shootBullet(self.mouseAngle);
     	}
 	}
+
     self.shootBullet = function (angle) {
-        var b = Bullet(self.id, angle);
-        b.x = self.x;
-        b.y = self.y;
+        Bullet({
+            parent: self.id,
+            angle: angle,
+            x: self.x,
+            y: self.y,
+            map: self.map,
+        });
     }
 
 	self.updateSpd = function () {
@@ -91,6 +114,7 @@ var Player = function (id) {
             hp: self.hp,
             hpMax: self.hpMax,
             score: self.score,
+            map: self.map,
         };
     }
 
@@ -101,33 +125,68 @@ var Player = function (id) {
             y: self.y,
             hp: self.hp,
             score: self.score,
+            map: self.map,
         };
     }
 
-	Player.list[id] = self;
+	Player.list[self.id] = self;
 
     initPack.player.push(self.getInitPack());
 	return self;
 }
 
 Player.list = {};
-Player.onConnect = function (socket) {
-	var player = Player(socket.id);
+
+Player.onConnect = function (socket, username) {
+    var map = 'forest';
+    if (Math.random() < 0.5)
+        map = 'field';
+	var player = Player({
+        username: username,
+        id: socket.id,
+        map: map,
+    });
+
 	socket.on('keyPress', function (data) {
-		if (data.inputId === 'left') {
+		if (data.inputId === 'left')
 			player.pressingLeft = data.state;
-		} else if (data.inputId === 'right') {
-			player.pressingRight = data.state;
-		} else if (data.inputId === 'up') {
-			player.pressingUp = data.state;
-		} else if (data.inputId === 'down') {
-			player.pressingDown = data.state;
-		} else if (data.inputId === 'attack') {
-		    player.pressingAttack = data.state;
-		} else if (data.inputId === 'mouseAngle') {
-		    player.mouseAngle = data.state;
-		}
+        else if (data.inputId === 'right')
+        	player.pressingRight = data.state;
+        else if (data.inputId === 'up')
+        	player.pressingUp = data.state;
+        else if (data.inputId === 'down')
+        	player.pressingDown = data.state;
+        else if (data.inputId === 'attack')
+            player.pressingAttack = data.state;
+        else if (data.inputId === 'mouseAngle')
+            player.mouseAngle = data.state;
 	});
+
+    socket.on('changeMap', function (data) {
+        if (player.map === 'field')
+            player.map = 'forest';
+        else
+            player.map = 'field';
+    });
+
+    socket.on('sendMsgToServer', function (data) {
+        for (var i in SOCKET_LIST) {
+            SOCKET_LIST[i].emit('addToChat', player.username + ': ' + data);
+        }
+    });
+
+    socket.on('sendPmToServer', function (data) { //data: {username, message}
+        var recipientSocket = null;
+        for (var i in Player.list)
+            if (Player.list[i].username === data.username)
+                recipientSocket = SOCKET_LIST[i];
+        if (recipientSocket === null) {
+            socket.emit('addToChat', 'The player ' + data.username + ' is not online.');
+        } else {
+            recipientSocket.emit('addToChat', 'From ' + player.username + ': ' + data.message);
+            socket.emit('addToChat', 'To ' + data.username + ': ' + data.message);
+        }
+    });
 
     socket.emit('init', {
         selfId: socket.id,
@@ -158,12 +217,14 @@ Player.update = function () {
 	return pack;
 }
 
-var Bullet = function (parent, angle) {
-	var self = Entity();
+var Bullet = function (param) {
+	var self = Entity(param);
 	self.id = Math.random();
-	self.spdX = Math.cos(angle / 180 * Math.PI) * 10;
-	self.spdY = Math.sin(angle / 180 * Math.PI) * 10;
-    self.parent = parent;
+    self.angle = param.angle;
+	self.spdX = Math.cos(param.angle / 180 * Math.PI) * 10;
+	self.spdY = Math.sin(param.angle / 180 * Math.PI) * 10;
+    self.parent = param.parent;
+
 	self.timer = 0;
 	self.toRemove = false;
 	var super_update = self.update;
@@ -175,7 +236,7 @@ var Bullet = function (parent, angle) {
 
         for (var i in Player.list) {
             var p = Player.list[i];
-            if (self.getDistance(p) < 32 && self.parent !== p.id) {
+            if (self.map === p.map && self.getDistance(p) < 32 && self.parent !== p.id) {
                 p.hp -= 1;
 
                 if (p.hp <= 0) {
@@ -197,6 +258,7 @@ var Bullet = function (parent, angle) {
             id: self.id,
             x: self.x,
             y: self.y,
+            map: self.map,
         };
     }
 
@@ -212,6 +274,7 @@ var Bullet = function (parent, angle) {
     initPack.bullet.push(self.getInitPack());
 	return self;
 }
+
 Bullet.list = {};
 
 Bullet.update = function () {
@@ -269,10 +332,10 @@ io.sockets.on('connection', function (socket) {
 	socket.id = Math.random();
 	SOCKET_LIST[socket.id] = socket;
 
-	socket.on('signIn', function (data) {
+	socket.on('signIn', function (data) { //{username,password}
         isValidPassword(data, function (res) {
             if (res) {
-    	        Player.onConnect(socket);
+    	        Player.onConnect(socket, data.username);
                 socket.emit('signInResponse', {success: true});
     	    } else {
     	        socket.emit('signInResponse', {success: false});
@@ -297,13 +360,6 @@ io.sockets.on('connection', function (socket) {
 		Player.onDisconnect(socket);
 	});
 
-    socket.on('sendMsgToServer', function (data) {
-        var playerName = ("" + socket.id).slice(2,7);
-        for (var i in SOCKET_LIST) {
-            SOCKET_LIST[i].emit('addToChat', playerName + ': ' + data);
-        }
-    });
-
     socket.on('evalServer', function (data) {
         if(!DEBUG)
             return;
@@ -313,14 +369,14 @@ io.sockets.on('connection', function (socket) {
 
 });
 
-var initPack = {player:[], bullet:[]};
-var removePack = {player:[], bullet:[]};
+var initPack = {player: [], bullet: []};
+var removePack = {player: [], bullet: []};
 
 setInterval(function () {
 	var pack = {
-		player: Player.update(),
-		bullet: Bullet.update(),
-	}
+        player: Player.update(),
+        bullet: Bullet.update(),
+    };
 
 	for (var i in SOCKET_LIST) {
 		var socket = SOCKET_LIST[i];
@@ -330,8 +386,28 @@ setInterval(function () {
 	}
 
     initPack.player = [];
-    initPack.bullet = [];
-    removePack.player = [];
-    removePack.bullet = [];
+	initPack.bullet = [];
+	removePack.player = [];
+	removePack.bullet = [];
 
 }, 1000/25);
+
+/*
+var profiler = require('v8-profiler');
+var fs = require('fs');
+
+var startProfiling = function (duration) {
+    profiler.startProfiling('1', true);
+    setTimeout(function () {
+        var profile1 = profiler.stopProfiling('1');
+
+        profile1.export(function (error, result) {
+            fs.writeFile('./profile.cpuprofile', result);
+            profile1.delete();
+            console.log("Profile saved.");
+        });
+    }, duration);
+}
+
+startProfiling(10000);
+*/
