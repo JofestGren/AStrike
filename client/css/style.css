@@ -127,23 +127,8 @@ input, select, button {
 
 .game {
     display: none;
-    /*width: 100%;
-    max-width: 960px;
-    margin: 0 auto;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;*/
 }
-/*
-.game-window {
-    max-width: 540px;
-	border-radius: 15px;
-	background-color: #ff5700;
-	padding: 35px 25px;
-	width: 100%;
 
-}
-*/
 .game-block {
 	height: 600px;
 	padding: 0 25px 25px 0;
@@ -152,6 +137,7 @@ input, select, button {
 	background-color: #ff5700;
 	border-radius: 15px;
 	position: relative;
+	margin-bottom: 30px;
 }
 
 .name-game {
@@ -264,10 +250,6 @@ input, select, button {
 	background-size: 100%;
 }
 
-.chat-form {
-	/*padding-top: 15px;*/
-}
-
 .input-chat {
 	width: 100%;
 	height: 50px;
@@ -278,3 +260,12 @@ input, select, button {
 	border-radius: 5px;
     font-family: 'Gochi Hand', cursive;
 }
+
+@media screen and (max-width: 1000px) {
+	.chat-container {
+		position: relative;
+		display: inline-block;
+		margin-bottom: 30px;
+		margin-left: 8px;
+	}
+};

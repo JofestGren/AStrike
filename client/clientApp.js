@@ -102,6 +102,7 @@ var Player = function (initPack) {
         var y = self.y - Player.list[selfId].y + HEIGHT / 2;
 
         var hpWidth = 30 * self.hp / self.hpMax;
+
         ctx.fillStyle = 'red';
         ctx.fillRect(x - hpWidth / 2, y - 40, hpWidth, 4);
 
@@ -111,21 +112,6 @@ var Player = function (initPack) {
         ctx.drawImage(Img.player, 0, 0, Img.player.width, Img.player.height,
              x - width / 2, y - height / 2, width, height);
 
-        //  if(Player.list[selfId].x < 0) {
-        //      Player.list[selfId].x = 0;
-        //  }
-        //  else if(Player.list[selfId].x > WIDTH - Img.player.width) {
-        //      Player.list[selfId].x = WIDTH - Img.player.width;
-        //  }
-         //
-        //  if(Player.list[selfId].y < 0) {
-        //      Player.list[selfId].y = 0;
-        //  }
-        //  else if(Player.list[selfId].y > HEIGHT - Img.player.height) {
-        //      Player.list[selfId].y = HEIGHT - Img.player.height;
-        //  }
-
-        // ctx.fillText(self.score, self.x, self.y - 60);
     }
 
     Player.list[self.id] = self;
