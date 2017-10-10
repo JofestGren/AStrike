@@ -1,6 +1,6 @@
-// var mongojs = require("mongojs");
-// var db = mongojs('localhost:27017/myGame', ['account', 'progress']);
-var db = null;
+var mongojs = require("mongojs");
+var db = mongojs('localhost:27017/myGame', ['account', 'progress']);
+// var db = null;
 
 var express = require('express');
 var app = express();
@@ -175,7 +175,8 @@ Player.onConnect = function (socket, username) {
         }
     });
 
-    socket.on('sendPmToServer', function (data) { //data: {username, message}
+    //data: {username, message}
+    socket.on('sendPmToServer', function (data) {
         var recipientSocket = null;
         for (var i in Player.list)
             if (Player.list[i].username === data.username)
@@ -301,30 +302,30 @@ Bullet.getAllInitPack = function () {
 var DEBUG = true;
 
 var isValidPassword = function (data, cb) {
-    return cb(true);
-    // db.account.find({username: data.username, password: data.password}, function (err, res) {
-    //     if (res.length > 0)
-    //         cb(true);
-    //     else
-    //         cb(false);
-    // });
+    // return cb(true);
+    db.account.find({username: data.username, password: data.password}, function (err, res) {
+        if (res.length > 0)
+            cb(true);
+        else
+            cb(false);
+    });
 }
 
 var isUsernameTaken = function (data, cb) {
-    return cb(false);
-    // db.account.find({username: data.username}, function (err, res) {
-    //     if (res.length > 0)
-    //         cb(true);
-    //     else
-    //         cb(false);
-    // });
+    // return cb(false);
+    db.account.find({username: data.username}, function (err, res) {
+        if (res.length > 0)
+            cb(true);
+        else
+            cb(false);
+    });
 }
 
 var addUser = function (data, cb) {
-    return cb();
-    // db.account.insert({username: data.username, password: data.password}, function (err) {
-    //     cb();
-    // });
+    // return cb();
+    db.account.insert({username: data.username, password: data.password}, function (err) {
+        cb();
+    });
 }
 
 var io = require('socket.io')(serv, {});
